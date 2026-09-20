@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PTS Calculator</title>
+    <style>
+        :root {
+            --primary-color: #0d5c75;
+            --secondary-color: #198296;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-radius: 8px;
+            --button-inactive: #dcd6cd;
+            --button-inactive-text: #4a4a4a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 4px 8px 12px 8px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        header {
+            text-align: center;
+            padding: 2px 0;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 20px;
+            line-height: 1.2;
+        }
+
+        p.subtitle {
+            color: #666;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .segmented-control {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        .btn-segment {
+            background-color: var(--button-inactive);
+            color: var(--button-inactive-text);
+            border: none;
+            padding: 9px 2px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .btn-segment.active {
+            background-color: var(--primary-color);
+            color: #ffffff;
+            box-shadow: 0 2px 4px rgba(13, 92, 117, 0.3);
+        }
+
+        .table-card {
+            padding: 4px 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 6px 6px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+            font-size: 13px;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: var(--primary-color);
+            font-weight: bold;
+            font-size: 13px;
+            padding: 7px 6px;
+        }
+
+        .time-input {
+            padding: 4px 6px;
+            border: 1px solid #0d5c75;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #0d5c75;
+            background-color: #f4fbfd;
+            width: 82px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .time-input:focus {
+            background-color: #fff;
+            border-color: #198296;
+            outline: none;
+        }
+
+        .active-row {
+            background-color: #fff9e6 !important;
+        }
+
+        .active-row .time-input {
+            border-color: #d9534f;
+            color: #d9534f;
+            background-color: #fff;
+        }
+
+        .desc-text {
+            font-size: 12px;
+            color: #555;
+            line-height: 1.2;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>✈️ PTS Calculator</h1>
+        <p class="subtitle">Type 4 digits (e.g. 1430) or HH:MM format</p>
+    </header>
+
+    <div class="card">
+        <div class="segmented-control">
+            <button id="btn-widebody" class="btn-segment active" onclick="switchScenario('widebody')">Wide Body</button>
+            <button id="btn-a32q" class="btn-segment" onclick="switchScenario('a32q')">A32Q</button>
+            <button id="btn-hkia" class="btn-segment" onclick="switchScenario('hkia')">HKIA Sign on</button>
+            <button id="btn-outport" class="btn-segment" onclick="switchScenario('outport')">EX-Outport</button>
+        </div>
+    </div>
+
+    <div class="card table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 38%;">Phase / Event</th>
+                    <th style="width: 25%;">Time</th>
+                    <th style="width: 37%;">Remarks</th>
+                </tr>
+            </thead>
+            <tbody id="resultBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const config = {
+    widebody: [
+        { id: "STD-85", name: "STD-85 (Sign On)", offset: -85, desc: "Duty Start" },
+        { id: "STD-70", name: "STD-70", offset: -70, desc: "CXC Sign out" },
+        { id: "STD-65", name: "STD-65", offset: -65, desc: "All crew proceed to bus" },
+        { id: "STD-55", name: "STD-55", offset: -55, desc: "First crew onboard" },
+        { id: "STD-42", name: "STD-42", offset: -42, desc: "Security check" },
+        { id: "STD-35", name: "STD-35 / STD-40 (U.S.A)", offset: -35, desc: "Boarding" },
+        { id: "STD-6", name: "STD-6 (Door Close)", offset: -6, desc: "Aircraft door closes" },
+        { id: "STD", name: "STD (Scheduled Time)", offset: 0, desc: "Scheduled Departure" }
+    ],
+    a32q: [
+        { id: "STD-85", name: "STD-85 (Sign On)", offset: -85, desc: "Duty Start" },
+        { id: "STD-70", name: "STD-70", offset: -70, desc: "CXC Sign out" },
+        { id: "STD-65", name: "STD-65", offset: -65, desc: "All crew proceed to bus" },
+        { id: "STD-55", name: "STD-55", offset: -55, desc: "First crew onboard" },
+        { id: "STD-47", name: "STD-47", offset: -47, desc: "Security check" },
+        { id: "STD-40", name: "STD-40", offset: -40, desc: "Boarding" },
+        { id: "STD-6", name: "STD-6 (Door Close)", offset: -6, desc: "Aircraft door closes" },
+        { id: "STD", name: "STD (Scheduled Time)", offset: 0, desc: "Scheduled Departure" }
+    ],
+    hkia: [
+        { id: "STD-85", name: "STD-85 (Sign On)", offset: -85, desc: "Duty Start" },
+        { id: "STD-70", name: "STD-70", offset: -70, desc: "CXC Sign out" },
+        { id: "STD-55", name: "STD-55", offset: -55, desc: "First crew onboard" },
+        { id: "STD-42", name: "STD-42", offset: -42, desc: "Security check" },
+        { id: "STD-35", name: "STD-35 / STD-40 (U.S.A)", offset: -35, desc: "Boarding" },
+        { id: "STD-6", name: "STD-6 (Door Close)", offset: -6, desc: "Aircraft door closes" },
+        { id: "STD", name: "STD (Scheduled Time)", offset: 0, desc: "Scheduled Departure" }
+    ],
+    outport: [
+        { id: "STD-60", name: "STD-60 (Sign On / Gate)", offset: -60, desc: "Pre-flight Checks & Cabin Prep" },
+        { id: "STD-47", name: "STD-47", offset: -47, desc: "Security check" },
+        { id: "STD-40", name: "STD-40 / STD-45 (US & UK)", offset: -40, desc: "Boarding" },
+        { id: "STD-6", name: "STD-6 (Door Close)", offset: -6, desc: "Aircraft door closes" },
+        { id: "STD", name: "STD (Scheduled Time)", offset: 0, desc: "Scheduled Departure" }
+    ]
+};
+
+let currentScenario = "widebody";
+let currentBaseMins = 10 * 60;
+let lastChangedId = "STD";
+
+function switchScenario(type) {
+    currentScenario = type;
+    document.querySelectorAll('.btn-segment').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`btn-${type}`).classList.add('active');
+    renderTable();
+}
+
+function renderTable() {
+    const nodes = config[currentScenario];
+    const tbody = document.getElementById('resultBody');
+    tbody.innerHTML = '';
+
+    nodes.forEach(node => {
+        const targetMins = (currentBaseMins + node.offset + 1440) % 1440;
+        const h = String(Math.floor(targetMins / 60)).padStart(2, '0');
+        const m = String(targetMins % 60).padStart(2, '0');
+        const timeVal = `${h}:${m}`;
+        const isLastChanged = (node.id === lastChangedId);
+
+        tbody.innerHTML += `
+            <tr class="${isLastChanged ? 'active-row' : ''}">
+                <td><strong>${node.name}</strong></td>
+                <td>
+                    <input type="text" class="time-input" value="${timeVal}" maxlength="5" placeholder="1430" 
+                           onchange="onTimeChange('${node.id}', this.value)"
+                           onblur="onTimeChange('${node.id}', this.value)">
+                </td>
+                <td class="desc-text">${node.desc}</td>
+            </tr>
+        `;
+    });
+}
+
+function parseSmartTime(val) {
+    if (!val) return null;
+    let clean = val.trim();
+
+    if (/^\d{3,4}$/.test(clean)) {
+        clean = clean.padStart(4, '0');
+        const h = parseInt(clean.substring(0, 2), 10);
+        const m = parseInt(clean.substring(2, 4), 10);
+        if (h >= 0 && h < 24 && m >= 0 && m < 60) return { h, m };
+    }
+
+    const match = clean.match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/);
+    if (match) return { h: parseInt(match[1], 10), m: parseInt(match[2], 10) };
+
+    return null;
+}
+
+function onTimeChange(nodeId, timeValue) {
+    const parsed = parseSmartTime(timeValue);
+    if (!parsed) {
+        renderTable();
+        return;
+    }
+
+    const selectedMins = parsed.h * 60 + parsed.m;
+    const node = config[currentScenario].find(n => n.id === nodeId);
+
+    currentBaseMins = selectedMins - node.offset;
+    lastChangedId = nodeId;
+
+    renderTable();
+}
+
+renderTable();
+
+if ('serviceWorker' in navigator) {
+    const swCode = `
+        const CACHE_NAME = 'pts-calc-v2';
+        self.addEventListener('install', (e) => {
+            e.waitUntil(
+                caches.open(CACHE_NAME).then((cache) => cache.addAll([location.href]))
+            );
+            self.skipWaiting();
+        });
+        self.addEventListener('activate', (e) => {
+            e.waitUntil(clients.claim());
+        });
+        self.addEventListener('fetch', (e) => {
+            e.respondWith(
+                caches.match(e.request).then((res) => res || fetch(e.request))
+            );
+        });
+    `;
+    const blob = new Blob([swCode], { type: 'application/javascript' });
+    const swUrl = URL.createObjectURL(blob);
+
+    navigator.serviceWorker.register(swUrl).then(() => {
+        console.log('離線模式 SW 註冊成功');
+    }).catch(err => {
+        console.log('SW 註冊失敗: ', err);
+    });
+}
+</script>
+</body>
+</html>
